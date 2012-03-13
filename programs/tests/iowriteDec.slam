@@ -1,0 +1,1 @@
+main := iobind_ (iowriteDec 1337) (%iowrite '\n');

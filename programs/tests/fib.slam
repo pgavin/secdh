@@ -1,0 +1,1 @@
+main := [ n := fib 100 . iobind_ (iowriteDec n) (iobind_ (%iowrite '\n') (%ioreturn n)) ];

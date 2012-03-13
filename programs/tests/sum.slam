@@ -1,0 +1,3 @@
+countdown := \!n . %zero? n () (cons n (countdown (pred n)));
+
+main := foldl add 0 (countdown 100);

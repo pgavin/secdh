@@ -1,0 +1,1 @@
+main := length (cons (%succ _) ());

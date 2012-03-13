@@ -1,0 +1,33 @@
+evalExpr :=
+  [ evalExpr' :=
+      \str i . %unit? i (car str)
+                      [ c := car i; i' := cdr i
+                      . charNum? c (evalExpr' (cons (digitToInt c) str) i')
+                                   (%unit? str ()
+                                           [ a := car str; str1 := cdr str
+                                           . eq? c '=' (evalExpr' (cons a str) i')
+                                                       (%unit? str1 ()
+                                                               [ b := car str1; str2 := cdr str1
+                                                               . eq? c '+' (evalExpr' (cons (%add a b) str2) i') (
+                                                                 eq? c '-' (evalExpr' (cons (%sub a b) str2) i') (
+                                                                 eq? c '*' (evalExpr' (cons (%mul a b) str2) i') (
+                                                                 eq? c '/' (evalExpr' (cons (%div a b) str2) i')))) ])])]
+  . \i . %unit? i () (evalExpr' () i) ];
+
+dropspaces := filter (\c . (and (ne? c '\n') (and (ne? c ' ') (ne? c '\t'))));
+
+iowriteError :=
+  iomapM_ %iowrite (cons 'e' (
+                    cons 'r' (
+                    cons 'r' (
+                    cons 'o' (
+                    cons 'r' (
+                    cons '\n' ()))))));
+
+main := %iobind ioreadLine \l .
+        %unit? l (%ioreturn ())
+                 (iobind_ [ r := evalExpr (dropspaces l)
+                          . %unit? r
+                                   iowriteError
+                                   (iobind_ (iowriteDec r) (%iowrite '\n')) ]
+                          main);

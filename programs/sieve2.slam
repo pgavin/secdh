@@ -1,0 +1,25 @@
+sieve :=
+  [ insertPrime := \p xs table .
+      qinsert (%mul p p) (map (%mul p) xs) table;
+    
+    sieve' := \xs table .
+      %unit? xs ()
+                [ x := car xs; xs' := cdr xs;
+                  nextComposite := qminkey table;
+                  adjust :=
+                    \t .
+                    [ n := qminkey t; ns := qminvalue t;
+                      n' := car ns; ns' := cdr ns
+                    . le? n x (adjust (qdelmininsert n' ns' t)) t ]
+                . le? nextComposite x
+                      (sieve' xs' (adjust table))
+                      (cons x (sieve' xs' (insertPrime x xs' table))) ]
+    
+  . \xs .
+    %unit? xs ()
+              [ x := car xs; xs' := cdr xs
+              . cons x (sieve' xs' (insertPrime x xs' qempty)) ] ];
+
+primes := (cons 2 (sieve (enumFromThen 3 5)));
+
+main := iomapM_ (\n . iobind_ (iowriteDec n) (%iowrite '\n')) (take 1000 primes);

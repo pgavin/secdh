@@ -1,0 +1,16 @@
+nsoln := \!nq . length (gen nq nq);
+
+downToOne := \!n . eq? n 1 (cons 1 ()) (cons n (downToOne (pred n)));
+
+gen := \!nq !n . zero? n (cons () ()) (concatMap (gen1 nq) (gen nq (pred n)));
+gen1 := \nq b . concatMap (gen2 b) (downToOne nq);
+gen2 := \b q . safe q 1 b (cons (cons q b) ()) ();
+
+safe := \!x !d !b . or (unit? b)
+                       [ q := car b; l := cdr b .
+                         (and (ne? x q)
+                              (and (ne? x (add q d))
+                                   (and (ne? x (sub q d))
+                                        (safe x (succ d) l)))) ];
+
+main := nsoln 7;

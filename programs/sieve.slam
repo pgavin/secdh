@@ -1,0 +1,28 @@
+minus :=
+  \xs ys .
+  [ x := car xs; y := car ys; xs' := cdr xs; ys' := cdr ys
+  . lt? x y
+        (cons x (minus xs' ys))
+        (gt? x y
+             (minus xs ys')
+             (minus xs' ys')) ];
+
+union := foldr merge ();
+
+merge :=
+  [ merge' :=
+    \xs ys .
+    [ x := car xs; y := car ys; xs' := cdr xs; ys' := cdr ys
+    . lt? x y
+          (cons x (merge' xs' ys))
+          (gt? x y
+               (cons y (merge' xs ys'))
+               (cons x (merge' xs' ys'))) ]
+  . \xs ys .
+    [ x := car xs; xs' := cdr xs . cons x (merge' xs' ys) ] ];
+
+primes := (cons 2 (cons 3 (minus (enumFromThen 5 7) composites)));
+composites := union (map (\n . map (%mul n) (enumFrom n)) primes);
+
+main :=
+  iomapM_ (\n . iobind_ (iowriteDec n) (%iowrite '\n')) (take 1000 primes);

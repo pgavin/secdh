@@ -1,0 +1,4 @@
+main := eqList? eqBool?
+                (cons (not false) (cons true ()))
+                (cons true (cons (not false) ()))
+                1 0;

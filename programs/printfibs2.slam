@@ -1,0 +1,5 @@
+fibs :=
+  [ fibs' := \a a' . [ a'' := %add a a' . cons a'' (fibs' a' a'') ]
+  . cons 0 (cons 1 (fibs' 0 1)) ];
+
+main := iomapM_ (\!n . iobind_ (iowriteDec n) (%iowrite '\n')) fibs;

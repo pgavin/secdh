@@ -1,0 +1,1 @@
+main := eq? (add (%neg 1000) (%neg 337)) (unbits (addBits (bits (%neg 1000)) (bits (%neg 337)))) 1 0;

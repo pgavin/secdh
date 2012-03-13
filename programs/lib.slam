@@ -1,0 +1,248 @@
+# lib.secd
+
+unit?    := %unit?;
+integer? := %integer?;
+lambda?  := %lambda?;
+zero?    := %zero?;
+pos?     := %pos?;
+succ     := %succ;
+pred     := %pred;
+neg      := %neg;
+
+S := \x y z . x z (y z);
+K := \x y . x;
+I := \x . x;
+Y := \f . (\x . f (x x)) (\x . f (x  x));
+
+id := \x . x;
+fix := [ x := fix x . x ];
+apply := \f x . f x;
+compose := \f g x . f (g x);
+flip := \f x y . f y x;
+seq := \!a b . b;
+
+true  := \t f . t;
+false := \t f . f;
+not   := \a t f . a f t;
+and   := \a b t f . a (b t f) f;
+or    := \a b t f . a t (b t f);
+xor   := \a b t f . a (b f t) (b t f);
+if    := \a t f . a t f;
+
+add := \!x !y . %add x y;
+sub := \!x !y . %sub x y;
+
+gt? := \!x !y . %pos? (sub x y);
+lt? := \!x !y . %pos? (sub y x);
+le? := \!x !y . not (%pos? (sub x y));
+ge? := \!x !y . not (%pos? (sub y x));
+
+square := \!n . %mul n n;
+
+cons := \x y f . f x y;
+car := \p . p (\x y . x);
+cdr := \p . p (\x y . y);
+
+curry := \f x y . f (cons x y);
+uncurry := \f p . f (car p) (cdr p);
+
+length := [length' := \!a xs . %unit? xs a (length' (%succ a) (cdr xs)) . length' 0];
+index := \xs !n . %zero? n (car xs) (index (cdr xs) (%pred n));
+take := \!n xs . %zero? n () (cons (car xs) (take (%pred n) (cdr xs)));
+
+append := \xs ys . %unit? xs ys (cons (car xs) (append (cdr xs) ys));
+map := \f xs . %unit? xs () (cons (f (car xs)) (map f (cdr xs)));
+filter := \f? xs . %unit? xs () [ x := car xs; xs' := cdr xs . f? x (cons x (filter f? xs')) (filter f? xs') ];
+foldl := \f a xs . %unit? xs a (foldl f (f a (car xs)) (cdr xs));
+foldl' := \f !a xs . %unit? xs a (foldl f (f a (car xs)) (cdr xs));
+foldr := \f a xs . %unit? xs a (f (car xs) (foldr f a (cdr xs)));
+reverse := foldl (flip cons) ();
+concatMap := \f . foldr (compose append f) ();
+zipWith := \f xs ys . or (unit? xs) (unit? ys) () (cons (f (car xs) (car ys)) (zipWith f (cdr xs) (cdr ys)));
+zip := zipWith cons;
+replicate := \!n x . %pos? n (cons x (replicate (%pred n) x)) ();
+
+@mkqueue := \!k !v l r f . f k v l r;
+qminkey := \f . f (\k v l r . k);
+qminvalue := \f . f (\k v l r . v);
+@qleft := \f . f (\k v l r . l);
+@qright := \f . f (\k v l r . r);
+
+qempty := ();
+
+qsingleton := \!k !v . @mkqueue k v () ();
+
+qunion :=
+  [ qlink :=
+      \!q q' .
+      [ k := qminkey q; v := qminvalue q; l := @qleft q; r := @qright q
+      . %unit? l (@mkqueue k v q' r)
+                 (@mkqueue k v r (qunion l q')) ];
+  . \!l !r .
+    %unit? l r
+             (%unit? r l
+                       (le? (qminkey l) (qminkey r)
+                            (qlink l r)
+                            (qlink r l))) ];
+
+qinsert := \!k !a . qunion (qsingleton k a);
+
+qdelmininsert :=
+  \!k !a !q .
+  %unit? q
+         (qsingleton k a)
+         (qunion (qinsert k a (@qleft q)) (@qright q));
+
+eq? := \!x !y . %eq? x y;
+ne? := \!x !y . not (eq? x y);
+
+eqBool? := \!x !y t f . x (y t f) (y f t);
+eqList? := \eqElem? !xs !ys . [ xu := %unit? xs; yu := %unit? ys .
+                                (or (and xu yu)
+                                    (and (and (not xu) (not yu))
+                                         (and (eqElem? (car xs) (car ys))
+                                              (eqList? eqElem? (cdr xs) (cdr ys))))) ];
+
+neg? := \!n . not (or (%zero? n) (%pos? n));
+
+# a list of the bits of the argument, lsb first. the last bit is
+# always false if the argument is positive, and true if it is
+# negative.
+bits := [ bits' := \!n . %zero? n (cons false ()) (cons (%odd? n) (bits' (%div2 n))) .
+          \!n . neg? n (map not (bits' (%pred (%neg n)))) (bits' n)
+        ];
+
+unbits := [ unbits' := \!isNeg !a !bs .
+                         %unit? bs (isNeg (%neg (%succ a)) a)
+                                   (unbits' isNeg (xor isNeg (car bs) (%succ (%mul2 a)) (%mul2 a)) (cdr bs)) .
+            \bs . %unit? bs 0
+                            [ bs' := reverse bs .
+                              unbits' (car bs') 0 (cdr bs') ] ];
+
+addBits := [ addBits' := \!c !x !y !xs !ys .
+                           [ t := xor x y; s := xor t c; c' := or (and x y) (and t c) .
+                             (cons s (%unit? xs (%unit? ys (cons (or (and t (not c)) (and x y)) ())
+                                                           (addBits' c' x (car ys) () (cdr ys)))
+                                                (%unit? ys (addBits' c' (car xs) y (cdr xs) ())
+                                                           (addBits' c' (car xs) (car ys) (cdr xs) (cdr ys))))) ] .
+             \!xs !ys . %unit? xs (%unit? ys () ys)
+                                  (%unit? ys xs (addBits' false (car xs) (car ys) (cdr xs) (cdr ys))) ];
+
+enumFrom := \!n . cons n (enumFrom (%succ n));
+enumFromTo := \!n !m . cons n (eq? n m () (enumFromTo (%succ n) m));
+enumFromThen :=
+  [ enumFromThen' :=
+      \n d . cons n (enumFromThen' (%add n d) d);
+  . \!n n' . enumFromThen' n (%sub n' n) ];
+enumFromThenTo :=
+  [ enumFromThenTo' :=
+      \n d m . eq? n m (cons m ()) (cons n (enumFromThenTo' (%add n d) d m))
+  . \!n n' m . cons n (enumFromThenTo' n' (%sub n' n) m) ];
+
+fib := [ fib' := \!a !a' !n . (zero? n) a' (eq? n 1) a (fib' (add a a') a (pred n)); . fib' 1 1 ];
+
+chr := %chr;
+ord := %ord;
+
+charNum? := \!c . [ c' := ord c . and (ge? c' (ord '0')) (le? c' (ord '9')) ];
+charLower? := \!c . [ c' := ord c . or (and (ge? c' (ord 'a')) (le? c' (ord 'z'))) ];
+charUpper? := \!c . [ c' := ord c . or (and (ge? c' (ord 'A')) (le? c' (ord 'Z'))) ];
+charAlpha? := \!c . or (charLower? c) (charUpper? c);
+
+digitToInt :=
+  \!c . [ c' := ord c .
+          charNum? c
+                   (lt? c' (ord '8')
+                        (lt? c' (ord '4')
+                             (lt? c' (ord '2')
+                                  (lt? c' (ord '1')
+                                       (eq? c' (ord '0') 0 _)
+                                       (eq? c' (ord '1') 1 _))
+                                  (lt? c' (ord '3')
+                                       (eq? c' (ord '2') 2 _)
+                                       (eq? c' (ord '3') 3 _)))
+                             (lt? c' (ord '6')
+                                  (lt? c' (ord '5')
+                                       (eq? c' (ord '4') 4 _)
+                                       (eq? c' (ord '5') 5 _))
+                                  (lt? c' (ord '7')
+                                       (eq? c' (ord '6') 4 _)
+                                       (eq? c' (ord '7') 5 _))))
+                        (lt? c' (ord '9')
+                             (eq? c' (ord '8') 8 _)
+                             (eq? c' (ord '9') 9 _)))
+                   (or (charAlpha? c)
+                       (or (lt? c' (ord 'e')) (lt? c' (ord 'E'))
+                           (or (lt? c' (ord 'c')) (lt? c' (ord 'C'))
+                               (or (lt? c' (ord 'b')) (lt? c' (ord 'B'))
+                                   (or (eq? c' (ord 'a')) (eq? c' (ord 'A')) 10 _)
+                                   (or (eq? c' (ord 'b')) (eq? c' (ord 'B')) 11 _))
+                               (or (lt? c' (ord 'c')) (lt? c' (ord 'C'))
+                                   (or (eq? c' (ord 'c')) (eq? c' (ord 'C')) 12 _)
+                                   (or (eq? c' (ord 'd')) (eq? c' (ord 'D')) 13 _)))
+                           (or (lt? c' (ord 'e')) (lt? c' (ord 'E'))
+                               (or (eq? c' (ord 'e')) (eq? c' (ord 'E')) 14 _)
+                               (or (eq? c' (ord 'F')) (eq? c' (ord 'F')) 15 _)))) ];
+
+intToDigit :=
+  \!n . lt? n 8
+            (lt? n 4
+                 (lt? n 2
+                      (lt? n 1
+                           (eq? n 0 '0' _)
+                           (eq? n 1 '1' _))
+                      (lt? n 3
+                           (eq? n 2 '2' _)
+                           (eq? n 3 '3' _)))
+                 (lt? n 6
+                      (lt? n 5
+                           (eq? n 4 '4' _)
+                           (eq? n 5 '5' _))
+                      (lt? n 7
+                           (eq? n 6 '6' _)
+                           (eq? n 7 '7' _))))
+            (lt? n 12
+                 (lt? n 10
+                      (lt? n 9
+                           (eq? n 8 '8' _)
+                           (eq? n 9 '9' _))
+                      (lt? n 11
+                           (eq? n 10 'a' _)
+                           (eq? n 11 'b' _)))
+                 (lt? n 14
+                      (lt? n 13
+                           (eq? n 12 'c' _)
+                           (eq? n 13 'd' _))
+                      (lt? n 15
+                           (eq? n 14 'e' _)
+                           (eq? n 15 'f' _))));
+
+bitToChar := \b . b '1' '0';
+
+showsInt :=
+  [ showsInt' :=
+      \!n . %zero? n () (cons (intToDigit (%mod n 10)) (showsInt' (%div n 10)))
+  . \!n s . %zero? n (cons (intToDigit 0) s)
+                     (%pos? n (foldl (flip cons) s (showsInt' n))
+                              (cons '-' (showsInt (%neg n) s))) ];
+showInt := flip showsInt ();
+
+iobind  := %iobind;
+iobind_ := \a b . %iobind a \x . b;
+
+ioliftM := \f m . %iobind m (compose %ioreturn f);
+
+iosequence_ := foldr iobind_ (%ioreturn ());
+
+iomapM_ := compose (compose iosequence_) map;
+
+iowriteBit := compose %iowrite bitToChar;
+
+iowriteBits := compose (iomapM_ iowriteBit) (compose reverse bits);
+iowriteDec  := compose (iomapM_ %iowrite) showInt;
+
+ioreadLine := [ ioreadLine' := \l . %iobind %ioread \c .
+                                    %unit? c (%ioreturn l)
+                                             (%eq? c '\n' (%ioreturn (cons '\n' l))
+                                                          (ioreadLine' (cons c l)))
+              . ioliftM reverse (ioreadLine' ()) ];

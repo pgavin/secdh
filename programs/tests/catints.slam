@@ -1,0 +1,7 @@
+main :=
+  %iobind ioreadLine \l .
+  %unit? l (%ioreturn ())
+           (iobind_ (iomapM_ (\c . eq? c '\n' (%iowrite '\n')
+                                              (charNum? c (%iowrite (intToDigit (digitToInt c)))
+                                                          (%iowrite '.'))) l)
+                    main);

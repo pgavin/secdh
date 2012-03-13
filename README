@@ -1,0 +1,169 @@
+Introduction
+============
+
+SECDH stands for "Stack-Environment-Code-Dump-Heap", and is an
+abstract machine based on Landin's classic SECD machine for evaluation
+of lambda-calculus expressions. This machine adds a heap of suspension
+cells to the structure managed by the machine, allowing fully-lazy
+evaluation, similar to Haskell. The machine operates directly on the
+syntax tree, as Landin's machine does. The entire implementation,
+including parser, evaluator, and garbage collector, occupies just over
+1100 lines of code.
+
+This implementation also allows Haskell-style monadic IO. Primitive
+operations are provided for reading and writing a charater to the console.
+
+Integer literals of arbitrary size are supported.  Character literals
+such as 'a' are supported. (The only character escapes supported are
+'\n', '\t', '\\', and '\'', however.) A unit type () is supported as
+well. Booleans are not supported as primitives, but handled (as is
+traditional) using binary functions.
+
+The "undefined" value is provided so that partial functions may be
+defined, via the "_" symbol.  This value behaves like Haskell's
+"undefined".
+
+
+Quick Start
+===========
+
+Build using cabal, then run the "secdh" executable using the file(s)
+you wish to execute as arguments.  The file "lib.slam" in the
+programs/ directory contains some basic functions that may be useful
+to you.  If the first argument to secdh is "-s", some statistics about
+the execution will be dumped.
+
+There are some example programs in the programs/ directory.  These
+should be run with lib.secdh as well; for example:
+
+  ./dist/build/secdh/secdh programs/lib.slam programs/sieve.slam
+
+Programs are executed by evaluating the "main" symbol, which must be
+an integer or IO action. If the result is an IO action, it will be
+performed, after which the result produced will be printed to the console.
+If main is an integer expression, it will be evaluated then printed.
+
+
+Syntax
+======
+
+The evaluator understands a simple quasi-untyped, fully lazy lambda
+calculus, called Slambda. It supports mutually-recursive definitions
+via a letrec-like construct. Additionally, function arguments can
+optionally be made strict (as in Haskell) by prefixing them with a
+bang ("!") character.
+
+Lambda abstractions are introduced using, for example,
+
+  \x y z  . f x y z
+
+The backslash begins the argument list, and the dot terminates it,
+begining the body. The body always extends as far as possible (usually
+to a closing parenthesis or bracket, or a semicolon).
+
+Letrec-style mutual definitions are introduced using, for example,
+
+  [ a := foo; b := bar . f a b ]
+
+Comments begin with a "#" symbol, and continue to the end of the line.
+Whitespace (and comments) maybe added arbitratily between tokens.
+
+The EBNF syntax follows:
+
+  program := definitions
+
+  definitions := definition (";" definition)*
+
+  definition := symbol ":=" term
+              | empty
+  empty := <nothing>
+  
+  digit := <any digit 0 through 9>
+  space := <any whitespace>
+  any   := <any character>
+  special := "\"
+           | "%"
+           | "!"
+           | "."
+           | "("
+           | ")"
+           | "["
+           | "]"
+           | ";"
+           | "#"
+  
+  symbolrest := any - (space | special)
+  symbolinit := symbolrest - (digit | "'" | "_")
+  symbol := symbolinit symbolrest*
+  
+  charlit := "'" (any - "\") "'"
+           | "'\n'"
+           | "'\t'"
+           | "'\''"
+           | "'\\'"
+  
+  intlit := digit+
+  
+  prim := '%' symbolrest+
+  
+  term := charlit
+        | intlit
+        | "()"
+        | "_"
+        | prim
+        | ( term )
+        | "[" definitions "." term "]"
+        | "\" symbol+ "." term
+        | term term
+
+
+
+Primitives
+==========
+
+The machine exposes several primitive functions that can be used in
+programs. Primitive symbols always begin with a "%" character.  Some
+primitives are predicates, but since no primitive booleans are
+provided, they instead return functions for true and false that are
+equivalent to:
+
+  true  := \t f . t;
+  false := \t f . f;
+
+The primitives available for use follow.  Whenever x or y is used as
+an argument, any value (other than _) maybe used. Whenever m or n is
+the argument, the value must be an integer, and similarly, for a c
+argument, the value must be a character. Whenever io is used, the
+argument must be an IO action.
+
+  Primitive/Args     Result
+  --------------     ------
+  %unit? x           true if x is (); otherwise false
+  %integer? x        true if x is an integer; otherwise false
+  %lambda? x         true if x is a function that can be applied; otherwise false
+  %neg n             -n
+  %succ n            n+1
+  %pred n            n-1
+  %mul2 n            n*2
+  %div2 n            n/2
+  %zero? x           true if x is an integer and zero; otherwise false
+  %pos? x            true if x is an integer and positive; otherwise false
+  %add m n           m+n
+  %sub m n           m-n
+  %mul m n           m*n
+  %div m n           m/n
+  %mod m n           m mod n
+  %eq? x y           true if x and y are both the same integer or character, or both (); otherwise false
+  %chr n             the character whose ordinal is n
+  %ord c             the ordinal of the character c
+  %ioreturn x        an IO action that does nothing and produces the result x
+  %iobind io f       performs the IO action io, and passes the result produced on to f (which must return a new IO action)
+  %ioread            an IO action that reads a character from the console, and produces it as its result
+  %iowrite c         an IO action that writes c to the console, and produces () as its result
+
+Most of these are simple enough to understand; the IO primitives may
+require explanation. %ioreturn is identical to Haskell's return
+function, except the IO monad is the only monad it works
+with. Similarly, %iobind is like Haskell's (>>=), but only for the IO
+monad as well.  Attempting to leave the IO monad by using a
+non-monadic function as the second argument to %iobind is an error.

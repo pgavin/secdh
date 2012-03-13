@@ -1,0 +1,4 @@
+fibrec := \!n . zero? n 1 (eq? n 1 1 (add (fibrec (pred n)) (fibrec (pred (pred n)))));
+
+main := [ n := 15; r1 := fib n; r2 := fibrec n .
+          eq? r1 r2 r1 (%neg 1) ];

@@ -1,0 +1,3 @@
+main := %iobind %ioread \c .
+        %unit? c (%ioreturn ())
+                 (%iobind (%iowrite c) \x . main);

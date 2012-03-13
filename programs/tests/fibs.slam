@@ -1,0 +1,3 @@
+fibs := cons 1 (cons 1 (zipWith add fibs (cdr fibs)));
+
+main := [ n := index fibs 100 . iobind_ (iowriteDec n) (iobind_ (%iowrite '\n') (%ioreturn n)) ];

@@ -1,0 +1,28 @@
+one := \!f? xs . %unit? xs () [ x := car xs . f? x (cons x ()) (one f? (cdr xs)) ];
+
+l := 0;
+r := 1;
+d := 2;
+
+left  := \!xs . map (one (eq? l)) (cdr xs);
+right := \!xs . cons () (map (one (eq? r)) xs);
+down  := \!xs . map (one (eq? d)) xs;
+
+merge := \!xs !ys . %unit? xs ()
+                              (%unit? ys xs
+                                         (cons (append (car xs) (car ys))
+                                               (merge (cdr xs) (cdr ys))));
+
+next := \mask . merge (merge (down mask) (left mask)) (right mask);
+
+fill := \!xs . %unit? xs () [ x := car xs; xs' := cdr xs . append (lrd x xs') (map (cons x) (fill xs')) ];
+
+lrd := \!xs !ys . %unit? xs (cons (cons (cons l (cons r (cons d ()))) ys) ()) ();
+
+solve := \!n mask . %zero? n (cons () ()) (concatMap (sol (%pred n)) (fill mask));
+
+sol := \!n row . map (cons row) (solve n (next row));
+
+nqueens := \!n . length (solve n (replicate n ()));
+
+main := nqueens 7;

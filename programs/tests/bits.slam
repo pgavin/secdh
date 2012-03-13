@@ -1,0 +1,6 @@
+main := and (eq? 1 (unbits (bits 1)))
+            (and (eq? (%neg 1) (unbits (bits (%neg 1))))
+                 (and (eq? 1337 (unbits (bits 1337)))
+                      (eq? (%neg 1337) (unbits (bits (%neg 1337))))))
+            1
+            0;

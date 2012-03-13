@@ -1,0 +1,11 @@
+hellostr := cons 'h'  (
+            cons 'e'  (
+            cons 'l'  (
+            cons 'l'  (
+            cons 'o'  (
+            cons '!'  (
+            cons '\n' (
+            ()
+            )))))));
+
+main := iomapM_ %iowrite hellostr;
